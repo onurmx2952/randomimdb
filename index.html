@@ -19,7 +19,17 @@
     --border: rgba(255,255,255,0.07);
   }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+  }
 
   body {
     background: var(--bg);
@@ -206,7 +216,15 @@
     white-space: nowrap;
   }
   .btn-random:active { transform: scale(0.97); background: rgba(255,255,255,0.12); }
-  .btn-random svg { width: 15px; height: 15px; fill: none; stroke: var(--text); stroke-width: 2; }
+  .btn-random svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: var(--text);
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
   .btn-random.rolling {
     pointer-events: none;
     background: rgba(230,57,70,0.18);
@@ -229,7 +247,7 @@
       linear-gradient(to bottom, rgba(8,10,14,0.2), rgba(8,10,14,0.88)),
       radial-gradient(circle at center, rgba(230,57,70,0.1), transparent 62%);
     backdrop-filter: blur(3px);
-    transition: opacity 0.18s ease;
+    transition: opacity 0.06s linear;
   }
   .roll-overlay.visible {
     opacity: 1;
@@ -343,8 +361,74 @@
     overflow-x: auto;
     padding: 0 20px;
     scrollbar-width: none;
+    scroll-behavior: auto;
+    perspective: 900px;
   }
   .scenes-scroll::-webkit-scrollbar { display: none; }
+  .scenes-shell {
+    position: relative;
+  }
+  .scenes-shell::before,
+  .scenes-shell::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 58px;
+    z-index: 1;
+    pointer-events: none;
+  }
+  .scenes-shell::before {
+    left: 0;
+    background: linear-gradient(90deg, var(--bg), transparent);
+  }
+  .scenes-shell::after {
+    right: 0;
+    background: linear-gradient(270deg, var(--bg), transparent);
+  }
+  .scene-scroll-btn {
+    position: absolute;
+    top: 50%;
+    z-index: 2;
+    width: 34px;
+    height: 52px;
+    border: 1px solid rgba(255,255,255,0.16);
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    color: rgba(255,255,255,0.92);
+    background: rgba(5,6,9,0.64);
+    backdrop-filter: blur(18px);
+    box-shadow: 0 18px 36px rgba(0,0,0,0.34);
+    cursor: pointer;
+    transform: translateY(-50%);
+    transition: opacity 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+  }
+  .scene-scroll-btn:hover {
+    border-color: rgba(255,255,255,0.36);
+    transform: translateY(-50%) scale(1.04);
+  }
+  .scene-scroll-btn:active {
+    transform: translateY(-50%) scale(0.96);
+  }
+  .scene-scroll-btn[hidden] {
+    display: none;
+  }
+  .scene-scroll-btn.prev {
+    left: 10px;
+  }
+  .scene-scroll-btn.next {
+    right: 10px;
+  }
+  .scene-scroll-btn svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    stroke-width: 2.4;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
   .scene-card {
     flex: 0 0 140px;
     height: 88px;
@@ -353,7 +437,22 @@
     background: var(--surface2);
     cursor: pointer;
     position: relative;
-    transition: transform 0.2s;
+    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), filter 0.28s ease;
+    will-change: transform;
+  }
+  .scenes-scroll.is-gliding .scene-card {
+    filter: saturate(0.92) brightness(0.9);
+  }
+  .scenes-scroll.is-gliding.forward .scene-card {
+    transform: translateX(-7px) rotateY(-4deg) scale(0.965);
+  }
+  .scenes-scroll.is-gliding.backward .scene-card {
+    transform: translateX(7px) rotateY(4deg) scale(0.965);
+  }
+  .scenes-scroll.is-settling .scene-card {
+    filter: saturate(1.04) brightness(1.04);
+    transform: translateX(0) rotateY(0) scale(1.012);
+    transition-duration: 0.16s;
   }
   .scene-card:active { transform: scale(0.97); }
   .scene-card img {
@@ -436,6 +535,54 @@
     width: 100%;
     height: 100%;
     border: 0;
+  }
+  .trailer-card.search-mode .trailer-frame {
+    display: none;
+  }
+  .trailer-search {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 22px;
+    background:
+      radial-gradient(circle at 50% 20%, rgba(230,57,70,0.18), transparent 42%),
+      linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.015));
+  }
+  .trailer-card.search-mode .trailer-search {
+    display: flex;
+  }
+  .trailer-search-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 46px;
+    padding: 0 18px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.18);
+    color: var(--text);
+    background: rgba(8,10,14,0.62);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    backdrop-filter: blur(18px);
+    box-shadow: 0 18px 44px rgba(0,0,0,0.32);
+    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+  }
+  .trailer-search-link:hover {
+    transform: translateY(-1px);
+    border-color: rgba(255,255,255,0.34);
+    background: rgba(16,19,27,0.76);
+  }
+  .trailer-search-link svg {
+    width: 17px;
+    height: 17px;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
   .review-card {
     background: var(--surface);
@@ -648,12 +795,165 @@
     background: var(--border);
     margin: 0 20px;
   }
+
+  .app-layout {
+    width: 100%;
+  }
+
+  .app-column {
+    min-width: 0;
+  }
+
+  @media (min-width: 1024px) {
+    body {
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .app-layout {
+      height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(300px, 1.05fr) minmax(300px, 1fr) minmax(300px, 0.95fr);
+      gap: 28px;
+      padding: 28px;
+      background:
+        radial-gradient(circle at 18% 10%, rgba(230,57,70,0.1), transparent 32%),
+        radial-gradient(circle at 85% 12%, rgba(244,162,97,0.08), transparent 34%),
+        var(--bg);
+    }
+
+    .app-column {
+      height: calc(100vh - 56px);
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      background: rgba(15,18,23,0.72);
+      box-shadow: 0 24px 70px rgba(0,0,0,0.34);
+    }
+
+    .roll-column {
+      display: flex;
+      flex-direction: column;
+      background: #06070a;
+    }
+
+    #hero {
+      height: auto;
+      min-height: 0;
+      flex: 1 1 auto;
+      border-radius: 8px 8px 0 0;
+    }
+
+    .hero-content {
+      padding: 0 24px 24px;
+    }
+
+    .hero-title {
+      font-size: clamp(42px, 4.3vw, 74px);
+    }
+
+    .hero-summary {
+      max-width: 58ch;
+      font-size: 14px;
+    }
+
+    #scenes-section {
+      flex: 0 0 142px;
+      padding: 18px 0 20px;
+      background: #06070a;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+
+    #scenes-section .section-label {
+      padding: 0 18px;
+      margin-bottom: 12px;
+    }
+
+    .scenes-scroll {
+      padding: 0 18px;
+      gap: 12px;
+    }
+
+    #scenes-section .scenes-shell::before {
+      background: linear-gradient(90deg, #06070a, transparent);
+    }
+
+    #scenes-section .scenes-shell::after {
+      background: linear-gradient(270deg, #06070a, transparent);
+    }
+
+    .scene-card {
+      flex-basis: 154px;
+      height: 96px;
+      border-radius: 6px;
+    }
+
+    .divider,
+    .bottom-pad {
+      display: none;
+    }
+
+    .reviews-column,
+    .media-column {
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+
+    .reviews-column::-webkit-scrollbar,
+    .media-column::-webkit-scrollbar {
+      display: none;
+    }
+
+    #reviews-section {
+      min-height: 100%;
+      padding: 24px;
+      background: transparent;
+    }
+
+    #reviews-section .section-label,
+    #trailer-section .section-label {
+      padding: 0;
+    }
+
+    .review-card {
+      border-radius: 8px;
+      margin-bottom: 14px;
+      background: rgba(8,10,14,0.72);
+    }
+
+    .review-text {
+      font-size: 14px;
+    }
+
+    #trailer-section {
+      padding: 24px 24px 12px;
+      background: transparent;
+    }
+
+    .trailer-card {
+      border-radius: 8px;
+    }
+
+    #links-section {
+      padding: 12px 24px 24px;
+      background: transparent;
+      justify-content: stretch;
+    }
+
+    .imdb-link {
+      width: 100%;
+      border-radius: 8px;
+      margin: 0;
+    }
+  }
 </style>
 </head>
 <body>
 
 
 
+<main class="app-layout">
+<section class="app-column roll-column">
 <!-- Hero -->
 <div id="hero">
   <div class="hero-bg" id="heroBg"></div>
@@ -678,7 +978,10 @@
     <div class="hero-buttons">
       
       <button class="btn-random" id="randomBtn">
-        <svg viewBox="0 0 24 24"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M18.2 13.5a6.7 6.7 0 1 1-3.1-7.65"/>
+          <path d="M19.05 4.75v5h-5"/>
+        </svg>
         <span>Roll</span>
       </button>
     </div>
@@ -688,17 +991,29 @@
 <!-- Scenes -->
 <div id="scenes-section">
   <div class="section-label">Scenes</div>
-  <div class="scenes-scroll" id="scenesScroll"></div>
+  <div class="scenes-shell">
+    <button class="scene-scroll-btn prev" id="scenesPrev" aria-label="Previous scenes" hidden>
+      <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="scenes-scroll" id="scenesScroll"></div>
+    <button class="scene-scroll-btn next" id="scenesNext" aria-label="Next scenes" hidden>
+      <svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+  </div>
 </div>
 
 <div class="divider"></div>
+</section>
 
+<section class="app-column reviews-column">
 <!-- Reviews -->
 <div id="reviews-section">
   <div class="section-label">Reviews</div>
   <div id="reviewsList"></div>
 </div>
+</section>
 
+<section class="app-column media-column">
 <div id="trailer-section">
   <div class="trailer-card" id="trailerCard">
     <div class="trailer-head">
@@ -719,6 +1034,12 @@
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
         allowfullscreen
       ></iframe>
+      <div class="trailer-search" id="trailerSearch">
+        <a class="trailer-search-link" id="trailerSearchLink" href="#" target="_blank" rel="noopener noreferrer">
+          <svg viewBox="0 0 24 24"><path d="M15 10l4.5-2.5v9L15 14"/><rect x="3" y="6" width="12" height="12" rx="2"/></svg>
+          <span>Find trailer</span>
+        </a>
+      </div>
     </div>
   </div>
 </div>
@@ -734,6 +1055,8 @@
 </div>
 
 <div class="bottom-pad"></div>
+</section>
+</main>
 
 <div class="scene-lightbox" id="sceneLightbox" aria-hidden="true">
   <button class="scene-lightbox-nav prev" id="sceneLightboxPrev" aria-label="Previous scene">&#8249;</button>
@@ -768,6 +1091,7 @@ let currentSceneIndex = 0;
 let lightboxAnimating = false;
 let rollAnimating = false;
 let rollPosterBank = [];
+let sceneScrollAnimation = null;
 
 // Shuffle (Fisher-Yates) tabanlı sıra — aynı film arka arkaya gelmez,
 // tüm filmler bitmeden tekrar başlamaz.
@@ -823,7 +1147,7 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function samplePosterIndices(count = 20, excludeIdx = -1) {
+function samplePosterIndices(count = 5, excludeIdx = -1) {
   if (!movies.length) return [];
   const indices = [];
   const used = new Set([excludeIdx]);
@@ -847,7 +1171,7 @@ function samplePosterIndices(count = 20, excludeIdx = -1) {
 }
 
 function preloadRollPosters(excludeIdx = -1) {
-  rollPosterBank = samplePosterIndices(20, excludeIdx).map((idx) => {
+  rollPosterBank = samplePosterIndices(5, excludeIdx).map((idx) => {
     const src = movies[idx].poster;
     const img = new Image();
     img.decoding = 'async';
@@ -896,20 +1220,30 @@ function trailerEmbedUrl(videoId) {
   return `https://www.youtube-nocookie.com/embed/${safeId}?rel=0&modestbranding=1&playsinline=1`;
 }
 
+function trailerSearchUrl(movie) {
+  const query = `${decodeText(movie.title)} ${decodeText(movie.year || '')} official trailer`.trim();
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+}
+
 function renderTrailer(movie) {
   const trailerCard = document.getElementById('trailerCard');
   const trailerFrame = document.getElementById('trailerFrame');
   const trailerTitle = document.getElementById('trailerTitle');
+  const trailerSearchLink = document.getElementById('trailerSearchLink');
   const trailerId = trailers[decodeText(movie.tt)];
 
   if (!trailerId) {
-    trailerCard.classList.remove('visible');
+    trailerTitle.textContent = `${decodeText(movie.title)} Trailer Search`;
     trailerFrame.src = '';
+    trailerSearchLink.href = trailerSearchUrl(movie);
+    trailerCard.classList.add('visible', 'search-mode');
     return;
   }
 
   trailerTitle.textContent = `${decodeText(movie.title)} ${UI_TEXT.trailerTitleSuffix}`;
   trailerFrame.src = trailerEmbedUrl(trailerId);
+  trailerSearchLink.href = trailerSearchUrl(movie);
+  trailerCard.classList.remove('search-mode');
   trailerCard.classList.add('visible');
 }
 
@@ -946,6 +1280,8 @@ function renderMovie(idx) {
       <img src="${s}" alt="scene" loading="lazy" onerror="this.parentElement.style.display='none'">
     </div>
   `).join('');
+  scenes.scrollLeft = 0;
+  requestAnimationFrame(updateSceneScrollButtons);
 
   // Reviews
   const revList = document.getElementById('reviewsList');
@@ -973,6 +1309,76 @@ function renderMovie(idx) {
   preloadRollPosters(idx);
 }
 
+function updateSceneScrollButtons() {
+  const scenes = document.getElementById('scenesScroll');
+  const prev = document.getElementById('scenesPrev');
+  const next = document.getElementById('scenesNext');
+  if (!scenes || !prev || !next) return;
+
+  const maxScroll = Math.max(0, scenes.scrollWidth - scenes.clientWidth);
+  const hasOverflow = maxScroll > 4;
+  prev.hidden = !hasOverflow || scenes.scrollLeft <= 4;
+  next.hidden = !hasOverflow || scenes.scrollLeft >= maxScroll - 4;
+}
+
+function easeOutQuart(t) {
+  return 1 - Math.pow(1 - t, 4);
+}
+
+function animateScenesTo(targetLeft, direction) {
+  const scenes = document.getElementById('scenesScroll');
+  if (!scenes) return;
+
+  if (sceneScrollAnimation) {
+    cancelAnimationFrame(sceneScrollAnimation);
+    sceneScrollAnimation = null;
+  }
+
+  const startLeft = scenes.scrollLeft;
+  const maxScroll = Math.max(0, scenes.scrollWidth - scenes.clientWidth);
+  const endLeft = clamp(targetLeft, 0, maxScroll);
+  const distance = endLeft - startLeft;
+  if (Math.abs(distance) < 2) {
+    updateSceneScrollButtons();
+    return;
+  }
+
+  const duration = clamp(Math.abs(distance) * 0.62, 280, 460);
+  const startedAt = performance.now();
+  scenes.classList.remove('backward', 'forward', 'is-settling');
+  scenes.classList.add('is-gliding', direction > 0 ? 'forward' : 'backward');
+
+  function tick(now) {
+    const progress = clamp((now - startedAt) / duration, 0, 1);
+    scenes.scrollLeft = startLeft + distance * easeOutQuart(progress);
+    updateSceneScrollButtons();
+
+    if (progress < 1) {
+      sceneScrollAnimation = requestAnimationFrame(tick);
+      return;
+    }
+
+    scenes.scrollLeft = endLeft;
+    scenes.classList.remove('is-gliding', 'backward', 'forward');
+    scenes.classList.add('is-settling');
+    sceneScrollAnimation = null;
+    updateSceneScrollButtons();
+    setTimeout(() => scenes.classList.remove('is-settling'), 170);
+  }
+
+  sceneScrollAnimation = requestAnimationFrame(tick);
+}
+
+function scrollScenes(direction) {
+  const scenes = document.getElementById('scenesScroll');
+  if (!scenes) return;
+  const firstCard = scenes.querySelector('.scene-card');
+  const cardStep = firstCard ? firstCard.getBoundingClientRect().width + 12 : 166;
+  const cardsPerMove = Math.max(1, Math.floor((scenes.clientWidth - 44) / cardStep));
+  const amount = cardStep * Math.min(3, cardsPerMove);
+  animateScenesTo(scenes.scrollLeft + direction * amount, direction);
+}
+
 async function rollToNextMovie() {
   if (!movies.length || rollAnimating) return;
   rollAnimating = true;
@@ -982,9 +1388,9 @@ async function rollToNextMovie() {
   const posterStage = document.getElementById('rollPosterStage');
   const poster = document.getElementById('rollPoster');
   const nextIdx = getRandom(currentIdx);
-  const bank = rollPosterBank.length >= 19 ? rollPosterBank.slice(0, 19) : samplePosterIndices(19, currentIdx).map(idx => ({ idx, src: movies[idx].poster }));
-  const frames = [...bank, { idx: nextIdx, src: movies[nextIdx]?.poster }].filter(frame => frame.src).slice(0, 20);
-  const frameDelay = 50;
+  const bank = rollPosterBank.length >= 4 ? rollPosterBank.slice(0, 4) : samplePosterIndices(4, currentIdx).map(idx => ({ idx, src: movies[idx].poster }));
+  const frames = [...bank, { idx: nextIdx, src: movies[nextIdx]?.poster }].filter(frame => frame.src).slice(0, 5);
+  const frameDelay = 55;
 
   button.classList.add('rolling');
   overlay.classList.add('visible');
@@ -999,7 +1405,7 @@ async function rollToNextMovie() {
   renderMovie(nextIdx);
   window.scrollTo({ top: 0, behavior: 'smooth' });
   posterStage.classList.remove('spinning');
-  await sleep(120);
+  await sleep(30);
   overlay.classList.remove('visible');
   overlay.setAttribute('aria-hidden', 'true');
   poster.removeAttribute('src');
@@ -1224,6 +1630,10 @@ document.getElementById('scenesScroll').addEventListener('click', (event) => {
   const sceneIndex = Number(card.dataset.sceneIndex);
   if (Number.isInteger(sceneIndex)) openSceneLightbox(sceneIndex);
 });
+document.getElementById('scenesScroll').addEventListener('scroll', updateSceneScrollButtons, { passive: true });
+document.getElementById('scenesPrev').addEventListener('click', () => scrollScenes(-1));
+document.getElementById('scenesNext').addEventListener('click', () => scrollScenes(1));
+window.addEventListener('resize', updateSceneScrollButtons);
 
 document.getElementById('sceneLightboxClose').addEventListener('click', closeSceneLightbox);
 document.getElementById('sceneLightboxPrev').addEventListener('click', () => animateSceneShift('prev'));
