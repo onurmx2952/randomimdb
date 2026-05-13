@@ -1500,16 +1500,14 @@ function trackRoll(movie) {
   const movieId = decodeText(movie.tt || '');
   const movieTitle = decodeText(movie.title || '');
   const imdbPath = `/title/${movieId}/`;
-  const imdbUrl = `https://www.imdb.com${imdbPath}`;
 
   identifyRollUser(userId);
 
   window.umami.track('roll', {
-    user_id: userId,
-    movie_id: movieId,
-    movie_title: movieTitle,
-    imdb_url: imdbUrl,
-    imdb_path: imdbPath
+    roll_user: userId.slice(0, 18),
+    movie: movieId,
+    movie_name: movieTitle.slice(0, 120),
+    imdb: imdbPath
   });
 }
 
