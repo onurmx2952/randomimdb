@@ -1379,6 +1379,16 @@ function scrollScenes(direction) {
   animateScenesTo(scenes.scrollLeft + direction * amount, direction);
 }
 
+function trackRoll(movie) {
+  if (!window.umami || typeof window.umami.track !== 'function' || !movie) return;
+
+  window.umami.track('roll', {
+    movie_id: decodeText(movie.tt || ''),
+    title: decodeText(movie.title || ''),
+    imdb_url: `https://www.imdb.com/title/${decodeText(movie.tt || '')}/`
+  });
+}
+
 async function rollToNextMovie() {
   if (!movies.length || rollAnimating) return;
   rollAnimating = true;
@@ -1403,6 +1413,7 @@ async function rollToNextMovie() {
   }
 
   renderMovie(nextIdx);
+  trackRoll(movies[nextIdx]);
   window.scrollTo({ top: 0, behavior: 'smooth' });
   posterStage.classList.remove('spinning');
   await sleep(30);
