@@ -1506,11 +1506,9 @@ function trackRoll(movie) {
 
   if (window.umami && typeof window.umami.track === 'function') {
     window.umami.track('roll', {
-      user_id: userId,
-      movie_id: movieId,
-      movie_title: movieTitle,
-      imdb_url: imdbUrl,
-      imdb_path: imdbPath
+      visitor: userId,
+      movie: movieTitle,
+      imdb: imdbUrl
     });
   }
 }
