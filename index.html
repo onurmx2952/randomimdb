@@ -1075,6 +1075,7 @@
 
 <script>
 const MOVIES_URL = 'movies.json';
+const REVIEWS_URL = 'reviews.json';
 const TRAILERS_URL = 'trailers.json';
 const UI_TEXT = {
   more: 'More',
@@ -1086,6 +1087,8 @@ const UI_TEXT = {
   trailerTitleSuffix: 'Official Trailer'
 };
 let movies = [];
+let reviewsByMovie = {};
+let reviewsLoadPromise = null;
 let trailers = {};
 let currentIdx = 0;
 let currentSceneIndex = 0;
@@ -1248,9 +1251,94 @@ function renderTrailer(movie) {
   trailerCard.classList.add('visible');
 }
 
+function normalizeReviews(reviews) {
+  return Array.isArray(reviews)
+    ? reviews.map((review) => ({
+        ...review,
+        title: decodeText(review?.title),
+        body: decodeText(review?.body)
+      }))
+    : [];
+}
+
+function renderReviews(movie, reviews) {
+  const revList = document.getElementById('reviewsList');
+  const safeReviews = normalizeReviews(reviews);
+
+  if (!safeReviews.length) {
+    revList.innerHTML = `
+      <div class="review-card fade-up visible">
+        <div class="review-text">${UI_TEXT.noReview}</div>
+      </div>
+    `;
+    return;
+  }
+
+  revList.innerHTML = safeReviews.map((r, i) => `
+    <div class="review-card fade-up" style="transition-delay:${Math.min(i, 4) * 0.06}s">
+      <div class="stars">${starsHTML(movie.rating)}</div>
+      <div class="review-text">${renderExpandableText(r.body || UI_TEXT.noReview, 260)}</div>
+    </div>
+  `).join('');
+
+  requestAnimationFrame(() => {
+    revList.querySelectorAll('.fade-up').forEach(el => el.classList.add('visible'));
+  });
+}
+
+async function ensureReviewsLoaded() {
+  if (Object.keys(reviewsByMovie).length) return reviewsByMovie;
+  if (reviewsLoadPromise) return reviewsLoadPromise;
+
+  reviewsLoadPromise = (async () => {
+    const candidates = [REVIEWS_URL, './reviews.json'];
+    for (const file of candidates) {
+      try {
+        const res = await fetch(file, { cache: 'no-store' });
+        if (!res.ok) continue;
+        const parsed = await res.json();
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          reviewsByMovie = parsed;
+          return reviewsByMovie;
+        }
+      } catch (_) {}
+    }
+    reviewsByMovie = {};
+    return reviewsByMovie;
+  })();
+
+  return reviewsLoadPromise;
+}
+
+async function renderReviewsForMovie(movie) {
+  const tt = decodeText(movie.tt || '');
+
+  if (Array.isArray(movie.reviews) && movie.reviews.length) {
+    renderReviews(movie, movie.reviews);
+    return;
+  }
+
+  const cached = reviewsByMovie[tt];
+  if (cached) {
+    renderReviews(movie, cached);
+    return;
+  }
+
+  document.getElementById('reviewsList').innerHTML = `
+    <div class="review-card fade-up visible">
+      <div class="review-text">Loading reviews...</div>
+    </div>
+  `;
+
+  const loaded = await ensureReviewsLoaded();
+  if (currentIdx >= 0 && movies[currentIdx]?.tt !== tt) return;
+  renderReviews(movie, loaded[tt] || []);
+}
+
 function renderMovie(idx) {
   if (!movies.length || !movies[idx]) return;
   const m = movies[idx];
+  currentIdx = idx;
 
   // Hero bg
   const bg = document.getElementById('heroBg');
@@ -1284,15 +1372,7 @@ function renderMovie(idx) {
   scenes.scrollLeft = 0;
   requestAnimationFrame(updateSceneScrollButtons);
 
-  // Reviews
-  const revList = document.getElementById('reviewsList');
-  const reviews = m.reviews;
-  revList.innerHTML = reviews.map((r, i) => `
-    <div class="review-card fade-up" style="transition-delay:${i * 0.1}s">
-      <div class="stars">${starsHTML(m.rating)}</div>
-      <div class="review-text">${renderExpandableText(r.body || UI_TEXT.noReview, 260)}</div>
-    </div>
-  `).join('');
+  renderReviewsForMovie(m);
 
   // IMDb link
   const imdbLink = document.getElementById('imdbLink');
@@ -1306,7 +1386,6 @@ function renderMovie(idx) {
     document.querySelectorAll('.fade-up').forEach(el => el.classList.add('visible'));
   }, 100);
 
-  currentIdx = idx;
   preloadRollPosters(idx);
 }
 
@@ -1635,14 +1714,7 @@ async function tryFetchJson() {
           summary: decodeText(movie.summary),
           year: decodeText(movie.year),
           tt: decodeText(movie.tt),
-          genres: Array.isArray(movie.genres) ? movie.genres.map(decodeText) : [],
-          reviews: Array.isArray(movie.reviews)
-            ? movie.reviews.map((review) => ({
-                ...review,
-                title: decodeText(review?.title),
-                body: decodeText(review?.body)
-              }))
-            : []
+          genres: Array.isArray(movie.genres) ? movie.genres.map(decodeText) : []
         }));
         resetShuffle(currentIdx);
         return true;
