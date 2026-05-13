@@ -1077,6 +1077,7 @@
 const MOVIES_URL = 'movies.json';
 const REVIEWS_URL = 'reviews.json';
 const TRAILERS_URL = 'trailers.json';
+const ROLL_SHEETS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwQ2eVGnNnRm0GnItyDf3F3tvHrB-sCIzcwrj8-ju7RK0qPhBKYXRYm-5YRzQfsKBcC/exec';
 const UI_TEXT = {
   more: 'More',
   less: 'Less',
@@ -1489,6 +1490,7 @@ function trackRoll(movie) {
   const userId = getRollUserId();
   const movieId = decodeText(movie.tt || '');
   const movieTitle = decodeText(movie.title || '');
+  const imdbUrl = `https://www.imdb.com/title/${movieId}/`;
 
   if (window.umami && typeof window.umami.track === 'function') {
     window.umami.track('roll', {
@@ -1497,6 +1499,31 @@ function trackRoll(movie) {
       tt: movieId
     });
   }
+
+  trackRollToSheet({
+    visitor: userId,
+    movie: movieTitle,
+    tt: movieId,
+    imdb: imdbUrl
+  });
+}
+
+function trackRollToSheet(payload) {
+  if (!ROLL_SHEETS_ENDPOINT) return;
+
+  fetch(ROLL_SHEETS_ENDPOINT, {
+    method: 'POST',
+    mode: 'no-cors',
+    keepalive: true,
+    body: JSON.stringify({
+      visitor: payload.visitor,
+      movie: payload.movie,
+      tt: payload.tt,
+      imdb: payload.imdb,
+      page: window.location.href,
+      created_at: new Date().toISOString()
+    })
+  }).catch(() => {});
 }
 
 async function rollToNextMovie() {
