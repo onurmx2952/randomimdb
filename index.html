@@ -1408,13 +1408,9 @@ function identifyRollUser(userId) {
   if (!window.umami || typeof window.umami.identify !== 'function') return;
 
   try {
-    window.umami.identify({ id: userId, roll_user_id: userId });
+    window.umami.identify(userId);
   } catch (error) {
-    try {
-      window.umami.identify(userId, { roll_user_id: userId });
-    } catch (fallbackError) {
-      // Identification is helpful for grouping, but roll tracking should still continue.
-    }
+    // Identification is helpful for grouping, but roll tracking should still continue.
   }
 }
 
@@ -1423,7 +1419,7 @@ function trackRoll(movie) {
 
   const userId = getRollUserId();
   const movieId = decodeText(movie.tt || '');
-  const title = decodeText(movie.title || '');
+  const movieTitle = decodeText(movie.title || '');
   const imdbPath = `/title/${movieId}/`;
   const imdbUrl = `https://www.imdb.com${imdbPath}`;
 
@@ -1432,7 +1428,7 @@ function trackRoll(movie) {
   window.umami.track('roll', {
     user_id: userId,
     movie_id: movieId,
-    title,
+    movie_title: movieTitle,
     imdb_url: imdbUrl,
     imdb_path: imdbPath
   });
