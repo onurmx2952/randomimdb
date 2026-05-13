@@ -1493,29 +1493,6 @@ function identifyRollUser(userId) {
   }
 }
 
-function trackRollLocally(payload) {
-  const body = JSON.stringify({
-    user_id: payload.userId,
-    movie_id: payload.movieId,
-    movie_name: payload.movieTitle,
-    imdb_url: payload.imdbUrl,
-    page_url: window.location.href
-  });
-  const endpoint = 'roll-analytics/track.php';
-
-  if (navigator.sendBeacon) {
-    const blob = new Blob([body], { type: 'application/json' });
-    if (navigator.sendBeacon(endpoint, blob)) return;
-  }
-
-  fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body,
-    keepalive: true
-  }).catch(() => {});
-}
-
 function trackRoll(movie) {
   if (!movie) return;
 
@@ -1529,19 +1506,13 @@ function trackRoll(movie) {
 
   if (window.umami && typeof window.umami.track === 'function') {
     window.umami.track('roll', {
-      roll_user: userId.slice(0, 18),
-      movie: movieId,
-      movie_name: movieTitle.slice(0, 120),
-      imdb: imdbPath
+      user_id: userId,
+      movie_id: movieId,
+      movie_title: movieTitle,
+      imdb_url: imdbUrl,
+      imdb_path: imdbPath
     });
   }
-
-  trackRollLocally({
-    userId,
-    movieId,
-    movieTitle,
-    imdbUrl
-  });
 }
 
 async function rollToNextMovie() {
