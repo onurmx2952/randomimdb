@@ -1380,13 +1380,61 @@ function scrollScenes(direction) {
   animateScenesTo(scenes.scrollLeft + direction * amount, direction);
 }
 
+function createRollUserId() {
+  if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+    return window.crypto.randomUUID();
+  }
+  return `roll-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function getRollUserId() {
+  const key = 'roll_user_id';
+  let userId = '';
+
+  try {
+    userId = localStorage.getItem(key) || '';
+    if (!userId) {
+      userId = createRollUserId();
+      localStorage.setItem(key, userId);
+    }
+  } catch (error) {
+    userId = createRollUserId();
+  }
+
+  return userId;
+}
+
+function identifyRollUser(userId) {
+  if (!window.umami || typeof window.umami.identify !== 'function') return;
+
+  try {
+    window.umami.identify({ id: userId, roll_user_id: userId });
+  } catch (error) {
+    try {
+      window.umami.identify(userId, { roll_user_id: userId });
+    } catch (fallbackError) {
+      // Identification is helpful for grouping, but roll tracking should still continue.
+    }
+  }
+}
+
 function trackRoll(movie) {
   if (!window.umami || typeof window.umami.track !== 'function' || !movie) return;
 
+  const userId = getRollUserId();
+  const movieId = decodeText(movie.tt || '');
+  const title = decodeText(movie.title || '');
+  const imdbPath = `/title/${movieId}/`;
+  const imdbUrl = `https://www.imdb.com${imdbPath}`;
+
+  identifyRollUser(userId);
+
   window.umami.track('roll', {
-    movie_id: decodeText(movie.tt || ''),
-    title: decodeText(movie.title || ''),
-    imdb_url: `https://www.imdb.com/title/${decodeText(movie.tt || '')}/`
+    user_id: userId,
+    movie_id: movieId,
+    title,
+    imdb_url: imdbUrl,
+    imdb_path: imdbPath
   });
 }
 
