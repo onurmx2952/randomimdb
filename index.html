@@ -1084,6 +1084,8 @@ const UI_TEXT = {
   noReview: 'No review text.',
   moviesLoadErrorTitle: 'Movies could not be loaded',
   moviesLoadErrorBody: 'movies.json could not be read. Try opening the page through a local server.',
+  movieNotFoundTitle: 'Movie is not in this list',
+  movieNotFoundBody: 'This IMDb title id was not found in movies.json.',
   imdbTitleSuffix: 'on IMDb',
   trailerTitleSuffix: 'Official Trailer'
 };
@@ -1205,6 +1207,29 @@ function getRequestedMovieId() {
 function findMovieIndexById(movieId) {
   if (!movieId) return -1;
   return movies.findIndex((movie) => decodeText(movie.tt || '').toLowerCase() === movieId);
+}
+
+function renderMovieNotFound(movieId) {
+  currentIdx = -1;
+  document.getElementById('heroBg').style.opacity = 0;
+  document.getElementById('genreTags').innerHTML = '';
+  document.getElementById('heroTitle').textContent = UI_TEXT.movieNotFoundTitle;
+  document.getElementById('heroYear').textContent = decodeText(movieId || '');
+  document.getElementById('heroRating').textContent = '- / 10';
+  document.getElementById('heroSummary').textContent = UI_TEXT.movieNotFoundBody;
+  document.getElementById('scenesScroll').innerHTML = '';
+  updateSceneScrollButtons();
+  renderReviews(null, []);
+
+  const imdbLink = document.getElementById('imdbLink');
+  imdbLink.href = movieId ? `https://www.imdb.com/title/${encodeURIComponent(movieId)}/` : 'https://www.imdb.com/';
+  imdbLink.querySelector('.imdb-title').textContent = movieId ? `${movieId} ${UI_TEXT.imdbTitleSuffix}` : UI_TEXT.imdbTitleSuffix;
+
+  const trailerCard = document.getElementById('trailerCard');
+  document.getElementById('trailerFrame').src = '';
+  document.getElementById('trailerTitle').textContent = 'No local movie record';
+  document.getElementById('trailerSearchLink').href = imdbLink.href;
+  trailerCard.classList.add('visible', 'search-mode');
 }
 
 function starsHTML(rating) {
@@ -1775,7 +1800,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (loaded) {
     const requestedMovieId = getRequestedMovieId();
     const requestedIdx = findMovieIndexById(requestedMovieId);
-    renderMovie(requestedIdx >= 0 ? requestedIdx : getRandom());
+    if (requestedMovieId && requestedIdx < 0) {
+      renderMovieNotFound(requestedMovieId);
+    } else {
+      renderMovie(requestedIdx >= 0 ? requestedIdx : getRandom());
+    }
   } else {
     document.getElementById('heroTitle').textContent = UI_TEXT.moviesLoadErrorTitle;
     document.getElementById('heroSummary').textContent = UI_TEXT.moviesLoadErrorBody;
