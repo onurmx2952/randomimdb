@@ -2080,6 +2080,14 @@ document.getElementById('sceneLightboxStage').addEventListener('touchmove', (eve
 
 document.getElementById('sceneLightboxStage').addEventListener('touchend', (event) => {
   event.preventDefault();
+  const endedTouch = event.changedTouches[0];
+  const tapDistance = endedTouch
+    ? Math.hypot(endedTouch.clientX - zoomState.swipeStartX, endedTouch.clientY - zoomState.swipeStartY)
+    : Infinity;
+  if (!zoomState.isPinching && event.touches.length === 0 && tapDistance < 14) {
+    closeSceneLightbox();
+    return;
+  }
   if (zoomState.isPinching && event.touches.length < 2) {
     zoomState.isPinching = false;
     if (zoomState.scale <= 1.02) {
