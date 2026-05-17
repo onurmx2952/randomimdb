@@ -685,6 +685,8 @@
     background: #0c1016;
     touch-action: none;
     overscroll-behavior: contain;
+    position: relative;
+    z-index: 1;
   }
   .scene-lightbox-track {
     display: flex;
@@ -716,6 +718,7 @@
   }
   .scene-lightbox-nav {
     position: absolute;
+    z-index: 5;
     top: 50%;
     transform: translateY(-50%);
     width: 46px;
@@ -732,6 +735,7 @@
   .scene-lightbox-nav.next { right: 18px; }
   .scene-lightbox-close {
     position: absolute;
+    z-index: 6;
     top: 18px;
     right: 18px;
     width: 42px;
@@ -742,6 +746,38 @@
     color: var(--text);
     font-size: 24px;
     cursor: pointer;
+  }
+  .scene-lightbox-reset {
+    position: absolute;
+    z-index: 6;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%) translateY(10px);
+    width: 46px;
+    height: 46px;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    color: var(--text);
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    backdrop-filter: blur(18px);
+    transition: opacity 0.18s ease, transform 0.18s ease, background 0.18s ease;
+  }
+  .scene-lightbox-reset svg {
+    width: 22px;
+    height: 22px;
+    stroke: currentColor;
+    stroke-width: 2;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .scene-lightbox.zoomed .scene-lightbox-reset {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(-50%) translateY(0);
   }
 
   @media (max-width: 760px) {
@@ -775,8 +811,14 @@
     .scene-lightbox-close {
       top: max(12px, env(safe-area-inset-top));
       right: 12px;
+      width: 48px;
+      height: 48px;
       background: rgba(8,10,14,0.54);
       backdrop-filter: blur(18px);
+    }
+    .scene-lightbox-reset {
+      bottom: max(18px, env(safe-area-inset-bottom));
+      background: rgba(8,10,14,0.54);
     }
   }
 
@@ -1102,6 +1144,9 @@
   <button class="scene-lightbox-nav prev" id="sceneLightboxPrev" aria-label="Previous scene">&#8249;</button>
   <button class="scene-lightbox-nav next" id="sceneLightboxNext" aria-label="Next scene">&#8250;</button>
   <button class="scene-lightbox-close" id="sceneLightboxClose" aria-label="Close">&times;</button>
+  <button class="scene-lightbox-reset" id="sceneLightboxReset" aria-label="Reset zoom">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.35-5.65"></path><path d="M4 5v5h5"></path></svg>
+  </button>
   <div class="scene-lightbox-stage" id="sceneLightboxStage">
     <div class="scene-lightbox-track" id="sceneLightboxTrack">
       <div class="scene-lightbox-slide"><img id="sceneImagePrev" alt="Previous scene"></div>
@@ -1155,9 +1200,11 @@ const zoomState = {
   startCenterX: 0,
   startCenterY: 0,
   swipeStartX: 0,
+  swipeStartY: 0,
   swipeLastX: 0,
   swipeLastTime: 0,
   swipeDeltaX: 0,
+  lastTapTime: 0,
   isSwiping: false,
   isPanning: false,
   isPinching: false
@@ -1674,6 +1721,7 @@ function applyZoomTransform(animate = false) {
   if (!image) return;
   image.style.transition = animate ? 'transform 0.24s ease' : 'none';
   image.style.transform = `translate(${zoomState.x}px, ${zoomState.y}px) scale(${zoomState.scale})`;
+  document.getElementById('sceneLightbox').classList.toggle('zoomed', zoomState.scale > 1.02);
 }
 
 function resetZoom(animate = false) {
@@ -1684,9 +1732,11 @@ function resetZoom(animate = false) {
   zoomState.isPanning = false;
   zoomState.isPinching = false;
   zoomState.swipeStartX = 0;
+  zoomState.swipeStartY = 0;
   zoomState.swipeLastX = 0;
   zoomState.swipeLastTime = 0;
   zoomState.swipeDeltaX = 0;
+  zoomState.lastTapTime = 0;
   applyZoomTransform(animate);
 }
 
@@ -1743,6 +1793,7 @@ function getTouchCenter(touchA, touchB) {
 function beginSwipe(touch) {
   zoomState.isSwiping = true;
   zoomState.swipeStartX = touch.clientX;
+  zoomState.swipeStartY = touch.clientY;
   zoomState.swipeLastX = touch.clientX;
   zoomState.swipeLastTime = performance.now();
   zoomState.swipeDeltaX = 0;
@@ -1756,6 +1807,8 @@ function softenedSwipePercent(deltaX, stageWidth) {
 
 function beginPan(touch) {
   zoomState.isPanning = true;
+  zoomState.swipeStartX = touch.clientX;
+  zoomState.swipeStartY = touch.clientY;
   zoomState.startX = touch.clientX - zoomState.x;
   zoomState.startY = touch.clientY - zoomState.y;
 }
@@ -1769,6 +1822,28 @@ function beginPinch(touchA, touchB) {
   const center = getTouchCenter(touchA, touchB);
   zoomState.startCenterX = center.x - zoomState.x;
   zoomState.startCenterY = center.y - zoomState.y;
+}
+
+function resetSceneZoom() {
+  if (zoomState.scale <= 1.02) return;
+  resetZoom(true);
+  setTrackPosition(-33.3333, true);
+}
+
+function maybeResetZoomOnDoubleTap(touch) {
+  if (!touch || zoomState.scale <= 1.02) return false;
+  const moved = Math.hypot(
+    touch.clientX - zoomState.swipeStartX,
+    touch.clientY - zoomState.swipeStartY
+  );
+  const now = performance.now();
+  const isDoubleTap = moved < 12 && now - zoomState.lastTapTime < 320;
+  zoomState.lastTapTime = moved < 12 ? now : 0;
+  if (isDoubleTap) {
+    resetSceneZoom();
+    return true;
+  }
+  return false;
 }
 
 function lockPageScroll() {
@@ -1885,6 +1960,17 @@ document.getElementById('scenesNext').addEventListener('click', () => scrollScen
 window.addEventListener('resize', updateSceneScrollButtons);
 
 document.getElementById('sceneLightboxClose').addEventListener('click', closeSceneLightbox);
+document.getElementById('sceneLightboxClose').addEventListener('touchend', (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  closeSceneLightbox();
+}, { passive: false });
+document.getElementById('sceneLightboxReset').addEventListener('click', resetSceneZoom);
+document.getElementById('sceneLightboxReset').addEventListener('touchend', (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  resetSceneZoom();
+}, { passive: false });
 document.getElementById('sceneLightboxPrev').addEventListener('click', () => animateSceneShift('prev'));
 document.getElementById('sceneLightboxNext').addEventListener('click', () => animateSceneShift('next'));
 
@@ -1956,6 +2042,7 @@ document.getElementById('sceneLightboxStage').addEventListener('touchend', (even
     }
   }
   if (zoomState.scale > 1) {
+    maybeResetZoomOnDoubleTap(event.changedTouches[0]);
     zoomState.isPanning = false;
     return;
   }
