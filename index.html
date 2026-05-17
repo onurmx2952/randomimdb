@@ -1205,6 +1205,7 @@ const zoomState = {
   swipeLastTime: 0,
   swipeDeltaX: 0,
   lastTapTime: 0,
+  suppressTapCloseUntil: 0,
   isSwiping: false,
   isPanning: false,
   isPinching: false
@@ -1767,6 +1768,7 @@ function resetZoom(animate = false) {
   zoomState.swipeLastTime = 0;
   zoomState.swipeDeltaX = 0;
   zoomState.lastTapTime = 0;
+  zoomState.suppressTapCloseUntil = 0;
   applyZoomTransform(animate);
 }
 
@@ -1847,6 +1849,7 @@ function beginPinch(touchA, touchB) {
   zoomState.isPinching = true;
   zoomState.isSwiping = false;
   zoomState.isPanning = false;
+  zoomState.suppressTapCloseUntil = performance.now() + 520;
   zoomState.startScale = zoomState.scale;
   zoomState.startDistance = getTouchDistance(touchA, touchB);
   const center = getTouchCenter(touchA, touchB);
@@ -2080,16 +2083,9 @@ document.getElementById('sceneLightboxStage').addEventListener('touchmove', (eve
 
 document.getElementById('sceneLightboxStage').addEventListener('touchend', (event) => {
   event.preventDefault();
-  const endedTouch = event.changedTouches[0];
-  const tapDistance = endedTouch
-    ? Math.hypot(endedTouch.clientX - zoomState.swipeStartX, endedTouch.clientY - zoomState.swipeStartY)
-    : Infinity;
-  if (!zoomState.isPinching && event.touches.length === 0 && tapDistance < 14) {
-    closeSceneLightbox();
-    return;
-  }
   if (zoomState.isPinching && event.touches.length < 2) {
     zoomState.isPinching = false;
+    zoomState.suppressTapCloseUntil = performance.now() + 520;
     if (zoomState.scale <= 1.02) {
       resetZoom(true);
     } else {
@@ -2098,6 +2094,16 @@ document.getElementById('sceneLightboxStage').addEventListener('touchend', (even
       zoomState.y = clamp(zoomState.y, -limits.y, limits.y);
       applyZoomTransform(true);
     }
+    return;
+  }
+
+  const endedTouch = event.changedTouches[0];
+  const tapDistance = endedTouch
+    ? Math.hypot(endedTouch.clientX - zoomState.swipeStartX, endedTouch.clientY - zoomState.swipeStartY)
+    : Infinity;
+  if (event.touches.length === 0 && tapDistance < 14 && performance.now() > zoomState.suppressTapCloseUntil) {
+    closeSceneLightbox();
+    return;
   }
   if (zoomState.scale > 1) {
     maybeResetZoomOnDoubleTap(event.changedTouches[0]);
