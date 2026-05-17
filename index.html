@@ -1206,6 +1206,8 @@ const zoomState = {
   swipeDeltaX: 0,
   lastTapTime: 0,
   suppressTapCloseUntil: 0,
+  activeGesture: '',
+  moved: false,
   isSwiping: false,
   isPanning: false,
   isPinching: false
@@ -1768,7 +1770,8 @@ function resetZoom(animate = false) {
   zoomState.swipeLastTime = 0;
   zoomState.swipeDeltaX = 0;
   zoomState.lastTapTime = 0;
-  zoomState.suppressTapCloseUntil = 0;
+  zoomState.activeGesture = '';
+  zoomState.moved = false;
   applyZoomTransform(animate);
 }
 
@@ -1823,6 +1826,8 @@ function getTouchCenter(touchA, touchB) {
 }
 
 function beginSwipe(touch) {
+  zoomState.activeGesture = 'swipe';
+  zoomState.moved = false;
   zoomState.isSwiping = true;
   zoomState.swipeStartX = touch.clientX;
   zoomState.swipeStartY = touch.clientY;
@@ -1838,6 +1843,8 @@ function softenedSwipePercent(deltaX, stageWidth) {
 }
 
 function beginPan(touch) {
+  zoomState.activeGesture = 'pan';
+  zoomState.moved = false;
   zoomState.isPanning = true;
   zoomState.swipeStartX = touch.clientX;
   zoomState.swipeStartY = touch.clientY;
@@ -1846,6 +1853,8 @@ function beginPan(touch) {
 }
 
 function beginPinch(touchA, touchB) {
+  zoomState.activeGesture = 'pinch';
+  zoomState.moved = true;
   zoomState.isPinching = true;
   zoomState.isSwiping = false;
   zoomState.isPanning = false;
@@ -1902,6 +1911,7 @@ function unlockPageScroll() {
 
 function openSceneLightbox(index) {
   const lightbox = document.getElementById('sceneLightbox');
+  zoomState.suppressTapCloseUntil = 0;
   showSceneAt(index);
   lightbox.classList.add('open');
   lightbox.setAttribute('aria-hidden', 'false');
@@ -2020,15 +2030,6 @@ document.getElementById('sceneLightbox').addEventListener('click', (event) => {
 document.getElementById('sceneLightboxStage').addEventListener('touchstart', (event) => {
   if (lightboxAnimating) return;
   event.preventDefault();
-  const firstTouch = event.touches[0];
-  if (
-    event.touches.length === 1 &&
-    firstTouch &&
-    isPointOutsideCurrentImage(firstTouch.clientX, firstTouch.clientY)
-  ) {
-    closeSceneLightbox();
-    return;
-  }
   if (event.touches.length === 2) {
     beginPinch(event.touches[0], event.touches[1]);
     return;
@@ -2057,6 +2058,11 @@ document.getElementById('sceneLightboxStage').addEventListener('touchmove', (eve
   }
   if (event.touches.length !== 1) return;
   const touch = event.touches[0];
+  const deltaX = touch.clientX - zoomState.swipeStartX;
+  const deltaY = touch.clientY - zoomState.swipeStartY;
+  if (Math.hypot(deltaX, deltaY) > 10) {
+    zoomState.moved = true;
+  }
   if (zoomState.scale > 1) {
     if (!zoomState.isPanning) beginPan(touch);
     const limits = getMaxPan(zoomState.scale);
@@ -2068,9 +2074,8 @@ document.getElementById('sceneLightboxStage').addEventListener('touchmove', (eve
   if (!zoomState.isSwiping) beginSwipe(touch);
   const stageWidth = event.currentTarget.clientWidth || 1;
   const stageHeight = event.currentTarget.clientHeight || 1;
-  zoomState.swipeDeltaX = touch.clientX - zoomState.swipeStartX;
-  const swipeDeltaY = touch.clientY - zoomState.swipeStartY;
-  const shouldCloseVertically = Math.abs(swipeDeltaY) > Math.min(110, stageHeight * 0.12) && Math.abs(swipeDeltaY) > Math.abs(zoomState.swipeDeltaX) * 1.25;
+  zoomState.swipeDeltaX = deltaX;
+  const shouldCloseVertically = Math.abs(deltaY) > Math.min(100, stageHeight * 0.12) && Math.abs(deltaY) > Math.abs(deltaX) * 1.15;
   if (shouldCloseVertically) {
     closeSceneLightbox();
     return;
@@ -2085,6 +2090,8 @@ document.getElementById('sceneLightboxStage').addEventListener('touchend', (even
   event.preventDefault();
   if (zoomState.isPinching && event.touches.length < 2) {
     zoomState.isPinching = false;
+    zoomState.activeGesture = '';
+    zoomState.moved = false;
     zoomState.suppressTapCloseUntil = performance.now() + 520;
     if (zoomState.scale <= 1.02) {
       resetZoom(true);
@@ -2101,13 +2108,15 @@ document.getElementById('sceneLightboxStage').addEventListener('touchend', (even
   const tapDistance = endedTouch
     ? Math.hypot(endedTouch.clientX - zoomState.swipeStartX, endedTouch.clientY - zoomState.swipeStartY)
     : Infinity;
-  if (event.touches.length === 0 && tapDistance < 14 && performance.now() > zoomState.suppressTapCloseUntil) {
+  const isCleanTap = event.touches.length === 0 && tapDistance < 18 && !zoomState.moved && performance.now() > zoomState.suppressTapCloseUntil;
+  if (isCleanTap) {
     closeSceneLightbox();
     return;
   }
   if (zoomState.scale > 1) {
-    maybeResetZoomOnDoubleTap(event.changedTouches[0]);
     zoomState.isPanning = false;
+    zoomState.activeGesture = '';
+    zoomState.moved = false;
     return;
   }
   if (!zoomState.isSwiping) return;
@@ -2122,6 +2131,8 @@ document.getElementById('sceneLightboxStage').addEventListener('touchend', (even
     setTrackPosition(-33.3333, true);
   }
   zoomState.swipeDeltaX = 0;
+  zoomState.activeGesture = '';
+  zoomState.moved = false;
 }, { passive: false });
 
 document.getElementById('sceneLightboxStage').addEventListener('touchcancel', (event) => {
