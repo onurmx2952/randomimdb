@@ -669,6 +669,7 @@
     pointer-events: none;
     transition: opacity 0.25s ease;
     z-index: 300;
+    overscroll-behavior: contain;
   }
   .scene-lightbox.open {
     opacity: 1;
@@ -683,6 +684,7 @@
     border: 1px solid rgba(255,255,255,0.08);
     background: #0c1016;
     touch-action: none;
+    overscroll-behavior: contain;
   }
   .scene-lightbox-track {
     display: flex;
@@ -710,6 +712,7 @@
     user-select: none;
     -webkit-user-drag: none;
     will-change: transform;
+    touch-action: none;
   }
   .scene-lightbox-nav {
     position: absolute;
@@ -739,6 +742,42 @@
     color: var(--text);
     font-size: 24px;
     cursor: pointer;
+  }
+
+  @media (max-width: 760px) {
+    .scene-lightbox {
+      padding: 0;
+      background: #03050a;
+    }
+    .scene-lightbox-stage {
+      width: 100vw;
+      height: 100dvh;
+      max-width: none;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      background: #03050a;
+    }
+    .scene-lightbox-slide {
+      height: 100dvh;
+      background: #03050a;
+    }
+    .scene-lightbox-slide img {
+      width: 100vw;
+      height: 100dvh;
+      max-width: 100vw;
+      max-height: 100dvh;
+      object-fit: contain;
+    }
+    .scene-lightbox-nav {
+      display: none;
+    }
+    .scene-lightbox-close {
+      top: max(12px, env(safe-area-inset-top));
+      right: 12px;
+      background: rgba(8,10,14,0.54);
+      backdrop-filter: blur(18px);
+    }
   }
 
   /* ── STARS ── */
@@ -1099,6 +1138,7 @@ let lightboxAnimating = false;
 let rollAnimating = false;
 let rollPosterBank = [];
 let sceneScrollAnimation = null;
+let lockedScrollY = 0;
 
 // Shuffle (Fisher-Yates) tabanlı sıra — aynı film arka arkaya gelmez,
 // tüm filmler bitmeden tekrar başlamaz.
@@ -1731,23 +1771,45 @@ function beginPinch(touchA, touchB) {
   zoomState.startCenterY = center.y - zoomState.y;
 }
 
+function lockPageScroll() {
+  lockedScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+  document.body.style.position = 'fixed';
+  document.body.style.top = `-${lockedScrollY}px`;
+  document.body.style.left = '0';
+  document.body.style.right = '0';
+  document.body.style.width = '100%';
+  document.body.style.overflow = 'hidden';
+}
+
+function unlockPageScroll() {
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.left = '';
+  document.body.style.right = '';
+  document.body.style.width = '';
+  document.body.style.overflow = '';
+  window.scrollTo(0, lockedScrollY);
+  lockedScrollY = 0;
+}
+
 function openSceneLightbox(index) {
   const lightbox = document.getElementById('sceneLightbox');
   showSceneAt(index);
   lightbox.classList.add('open');
   lightbox.setAttribute('aria-hidden', 'false');
-  document.body.style.overflow = 'hidden';
+  lockPageScroll();
 }
 
 function closeSceneLightbox() {
   const lightbox = document.getElementById('sceneLightbox');
+  if (!lightbox.classList.contains('open')) return;
   lightbox.classList.remove('open');
   lightbox.setAttribute('aria-hidden', 'true');
   ['sceneImagePrev', 'sceneImageCurrent', 'sceneImageNext'].forEach((id) => {
     document.getElementById(id).removeAttribute('src');
   });
   resetZoom(false);
-  document.body.style.overflow = '';
+  unlockPageScroll();
 }
 
 document.getElementById('randomBtn').addEventListener('click', rollToNextMovie);
@@ -1834,6 +1896,7 @@ document.getElementById('sceneLightbox').addEventListener('click', (event) => {
 
 document.getElementById('sceneLightboxStage').addEventListener('touchstart', (event) => {
   if (lightboxAnimating) return;
+  event.preventDefault();
   if (event.touches.length === 2) {
     beginPinch(event.touches[0], event.touches[1]);
     return;
@@ -1844,10 +1907,11 @@ document.getElementById('sceneLightboxStage').addEventListener('touchstart', (ev
   } else {
     beginSwipe(event.touches[0]);
   }
-}, { passive: true });
+}, { passive: false });
 
 document.getElementById('sceneLightboxStage').addEventListener('touchmove', (event) => {
   if (lightboxAnimating) return;
+  event.preventDefault();
   if (event.touches.length === 2) {
     if (!zoomState.isPinching) beginPinch(event.touches[0], event.touches[1]);
     const distance = getTouchDistance(event.touches[0], event.touches[1]);
@@ -1876,9 +1940,10 @@ document.getElementById('sceneLightboxStage').addEventListener('touchmove', (eve
   zoomState.swipeLastTime = performance.now();
   const percentOffset = softenedSwipePercent(zoomState.swipeDeltaX, stageWidth);
   setTrackPosition(-33.3333 + percentOffset, false);
-}, { passive: true });
+}, { passive: false });
 
 document.getElementById('sceneLightboxStage').addEventListener('touchend', (event) => {
+  event.preventDefault();
   if (zoomState.isPinching && event.touches.length < 2) {
     zoomState.isPinching = false;
     if (zoomState.scale <= 1.02) {
@@ -1906,9 +1971,10 @@ document.getElementById('sceneLightboxStage').addEventListener('touchend', (even
     setTrackPosition(-33.3333, true);
   }
   zoomState.swipeDeltaX = 0;
-}, { passive: true });
+}, { passive: false });
 
-document.getElementById('sceneLightboxStage').addEventListener('touchcancel', () => {
+document.getElementById('sceneLightboxStage').addEventListener('touchcancel', (event) => {
+  event.preventDefault();
   if (zoomState.scale > 1) {
     const limits = getMaxPan(zoomState.scale);
     zoomState.x = clamp(zoomState.x, -limits.x, limits.x);
@@ -1921,7 +1987,7 @@ document.getElementById('sceneLightboxStage').addEventListener('touchcancel', ()
   zoomState.isPanning = false;
   zoomState.isPinching = false;
   zoomState.swipeDeltaX = 0;
-}, { passive: true });
+}, { passive: false });
 
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
