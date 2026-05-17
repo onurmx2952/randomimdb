@@ -1716,6 +1716,36 @@ function getMaxPan(scale) {
   };
 }
 
+function getContainedImageRect(image) {
+  const box = image.getBoundingClientRect();
+  const naturalWidth = image.naturalWidth || box.width;
+  const naturalHeight = image.naturalHeight || box.height;
+  const naturalRatio = naturalWidth / naturalHeight;
+  const boxRatio = box.width / box.height;
+  let width = box.width;
+  let height = box.height;
+
+  if (naturalRatio > boxRatio) {
+    height = width / naturalRatio;
+  } else {
+    width = height * naturalRatio;
+  }
+
+  return {
+    left: box.left + (box.width - width) / 2,
+    right: box.left + (box.width + width) / 2,
+    top: box.top + (box.height - height) / 2,
+    bottom: box.top + (box.height + height) / 2
+  };
+}
+
+function isPointOutsideCurrentImage(clientX, clientY) {
+  const image = currentSceneImage();
+  if (!image || !image.src || zoomState.scale > 1.02) return false;
+  const rect = getContainedImageRect(image);
+  return clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom;
+}
+
 function applyZoomTransform(animate = false) {
   const image = currentSceneImage();
   if (!image) return;
@@ -1975,7 +2005,11 @@ document.getElementById('sceneLightboxPrev').addEventListener('click', () => ani
 document.getElementById('sceneLightboxNext').addEventListener('click', () => animateSceneShift('next'));
 
 document.getElementById('sceneLightbox').addEventListener('click', (event) => {
-  if (event.target.id === 'sceneLightbox') {
+  if (event.target.closest('button')) return;
+  if (
+    event.target.id === 'sceneLightbox' ||
+    isPointOutsideCurrentImage(event.clientX, event.clientY)
+  ) {
     closeSceneLightbox();
   }
 });
@@ -1983,6 +2017,15 @@ document.getElementById('sceneLightbox').addEventListener('click', (event) => {
 document.getElementById('sceneLightboxStage').addEventListener('touchstart', (event) => {
   if (lightboxAnimating) return;
   event.preventDefault();
+  const firstTouch = event.touches[0];
+  if (
+    event.touches.length === 1 &&
+    firstTouch &&
+    isPointOutsideCurrentImage(firstTouch.clientX, firstTouch.clientY)
+  ) {
+    closeSceneLightbox();
+    return;
+  }
   if (event.touches.length === 2) {
     beginPinch(event.touches[0], event.touches[1]);
     return;
@@ -2021,7 +2064,14 @@ document.getElementById('sceneLightboxStage').addEventListener('touchmove', (eve
   }
   if (!zoomState.isSwiping) beginSwipe(touch);
   const stageWidth = event.currentTarget.clientWidth || 1;
+  const stageHeight = event.currentTarget.clientHeight || 1;
   zoomState.swipeDeltaX = touch.clientX - zoomState.swipeStartX;
+  const swipeDeltaY = touch.clientY - zoomState.swipeStartY;
+  const shouldCloseVertically = Math.abs(swipeDeltaY) > Math.min(110, stageHeight * 0.12) && Math.abs(swipeDeltaY) > Math.abs(zoomState.swipeDeltaX) * 1.25;
+  if (shouldCloseVertically) {
+    closeSceneLightbox();
+    return;
+  }
   zoomState.swipeLastX = touch.clientX;
   zoomState.swipeLastTime = performance.now();
   const percentOffset = softenedSwipePercent(zoomState.swipeDeltaX, stageWidth);
